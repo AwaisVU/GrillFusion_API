@@ -13,7 +13,7 @@ namespace GrillFusion_API.Models
         public string Category { get; set; } = string.Empty;
         public string? SpecialTag { get; set; }
 
-        [Range(1, 1000)]
+        [Range(1, 1000, ParseLimitsInInvariantCulture = true)]
         public double Price { get; set; }
 
         [Required]

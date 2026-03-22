@@ -137,7 +137,8 @@ namespace GrillFusion_API.Controllers
 
         [HttpPut]
         [Consumes("multipart/form-data")]
-        public async Task<ActionResult<ApiResponse>> UpdateMenuItems(int id, [FromForm] MenuItemUpdateDTO menuItemUpdateDTO)
+
+        public async Task<ActionResult<ApiResponse>> UpdateMenuItems([FromQuery] int id, [FromForm] MenuItemUpdateDTO menuItemUpdateDTO)
         {
             try
             {
@@ -203,6 +204,7 @@ namespace GrillFusion_API.Controllers
                 else
                 {
                     _response.IsSuccess = false;
+                    _response.ErrorMessages = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
                 }
 
             }

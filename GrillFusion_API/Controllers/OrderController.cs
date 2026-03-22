@@ -1,15 +1,17 @@
-﻿using GrillFusion_API.Data;
+﻿﻿using GrillFusion_API.Data;
 using GrillFusion_API.Models;
 using GrillFusion_API.Models.Dto;
 using GrillFusion_API.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
 
 namespace GrillFusion_API.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
+    [ApiController]
     public class OrderController : Controller
     {
         //Dependency Injection
@@ -69,6 +71,7 @@ namespace GrillFusion_API.Controllers
 
         //3. Create Order EndPoint
         [HttpPost]
+
         public async Task<ActionResult<ApiResponse>> CreateOrder([FromBody] OrderCreateDTO orderDTO)
         {
             try
@@ -170,15 +173,17 @@ namespace GrillFusion_API.Controllers
                     }
                     if (!string.IsNullOrEmpty(orderDTO.Status))
                     {
-                        if(orderFromDb.Status.Equals(SD.status_confirmed,StringComparison.InvariantCultureIgnoreCase) && orderDTO.Status.Equals(SD.status_readyForPickup, StringComparison.InvariantCultureIgnoreCase))
+                        var status = orderDTO.Status.Trim().ToLower();
+                        
+                        if(orderFromDb.Status.Equals(SD.status_confirmed,StringComparison.InvariantCultureIgnoreCase) && status.Equals(SD.status_readyForPickup, StringComparison.InvariantCultureIgnoreCase))
                         {
                             orderFromDb.Status = SD.status_readyForPickup;
                         }
-                        if (orderFromDb.Status.Equals(SD.status_readyForPickup, StringComparison.InvariantCultureIgnoreCase) && orderDTO.Status.Equals(SD.status_completed, StringComparison.InvariantCultureIgnoreCase))
+                        if (orderFromDb.Status.Equals(SD.status_readyForPickup, StringComparison.InvariantCultureIgnoreCase) && status.Equals(SD.status_completed, StringComparison.InvariantCultureIgnoreCase))
                         {
                             orderFromDb.Status = SD.status_completed;
                         }
-                        if(orderFromDb.Status.Equals(SD.status_cancelled, StringComparison.InvariantCultureIgnoreCase))
+                        if(status.Equals(SD.status_cancelled, StringComparison.InvariantCultureIgnoreCase) && !orderFromDb.Status.Equals(SD.status_completed, StringComparison.InvariantCultureIgnoreCase))
                         {
                             orderFromDb.Status = SD.status_cancelled;
                         }
