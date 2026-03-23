@@ -117,6 +117,12 @@ Pull requests are welcome!
 
 ---
 
-## ⭐ Support
+## 📬 CONTACT:
 
-If you found this useful, give it a ⭐ on GitHub!
+If you liked this project or want to collaborate:
+
+LinkedIn: https://linkedin.com/in/engawaisch Email: eng.awaisch@gmail.com
+
+## ⭐ Show Your Support
+
+Give a ⭐ if you found this project helpful!
