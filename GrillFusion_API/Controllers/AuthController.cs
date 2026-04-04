@@ -1,13 +1,16 @@
 ﻿using GrillFusion_API.Models;
 using GrillFusion_API.Models.Dto;
 using GrillFusion_API.Utility;
+using GrillFusion_API.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace GrillFusion_API.Controllers
 {
@@ -19,13 +22,17 @@ namespace GrillFusion_API.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly string secretKey;
+        private readonly IConfiguration _config;
+        private readonly EmailService _emailService;
 
-        public AuthController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
+        public AuthController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, EmailService emailService)
         {
             secretKey = configuration.GetValue<string>("ApiSettings:Secret") ?? "";
             _response = new ApiResponse();
             _userManager = userManager;
             _roleManager = roleManager;
+            _emailService = emailService;
+            _config = configuration;
         }
 
 
@@ -45,8 +52,7 @@ namespace GrillFusion_API.Controllers
                 var result = await _userManager.CreateAsync(newUser, model.Password);
                 if (result.Succeeded)
                 {
-                    // 🔧 FIX 1 - Check each role independently so no role is ever skipped
-                    // Old code checked only if Admin existed, then created both in one block
+                    // 1 - Check each role independently so no role is ever skipped
                     // If Admin existed but Customer was deleted, Customer would never be recreated
                     if (!await _roleManager.RoleExistsAsync(SD.Role_Admin))
                         await _roleManager.CreateAsync(new IdentityRole(SD.Role_Admin));
@@ -94,7 +100,7 @@ namespace GrillFusion_API.Controllers
         }
 
 
-        [HttpPost("login")]
+        [HttpPost("login")] //
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO model)
         {
             if (!ModelState.IsValid)
@@ -108,9 +114,7 @@ namespace GrillFusion_API.Controllers
 
             var userFromDb = await _userManager.FindByEmailAsync(model.Email);
 
-            // 🔧 FIX 2 - Explicitly return 400 if user not found
-            // Old code: if (userFromDb != null) { ... } then silently fell to bottom catch-all
-            // Now we return early with a clear message, rest of code runs without nesting
+        
             if (userFromDb == null)
             {
                 _response.Result = new LoginResponseDTO();
@@ -130,9 +134,7 @@ namespace GrillFusion_API.Controllers
                 return BadRequest(_response);
             }
 
-            // 🔧 FIX 3 & 4 - Fetch roles once with await, store in variable, reuse twice
-            // Old code: called GetRolesAsync(user).Result twice — blocked the thread (deadlock risk)
-            // and made two separate DB round trips unnecessarily
+          
             var roles = await _userManager.GetRolesAsync(userFromDb);
             var userRole = roles.FirstOrDefault() ?? SD.Role_Customer;
 
@@ -165,5 +167,94 @@ namespace GrillFusion_API.Controllers
             _response.IsSuccess = true;
             return Ok(_response);
         }
+
+
+
+        //Password Management 
+
+        //Forgot Password
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDTO model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user == null)
+                return Ok();
+            // 👆 Don't reveal if email exists
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            var encodedToken = WebEncoders.Base64UrlEncode(
+                Encoding.UTF8.GetBytes(token)
+            );
+
+            var resetLink = $"{_config["App:FrontendUrl"]}/reset-password?email={model.Email}&token={encodedToken}";
+            // 👆 THIS must match your React route
+
+            var emailBody = $@"
+        <h3>Password Reset</h3>
+        <p>Click below to reset your password:</p>
+        <a href='{resetLink}'>Reset Password</a>
+    ";
+
+            await _emailService.SendEmailAsync(
+                model.Email,
+                "Reset Your Password",
+                emailBody
+            );
+
+            return Ok();
+        }
+
+
+        //Reset Password
+        [HttpPost("reset-password")]
+public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO model)
+{
+
+if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+    if(string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.NewPassword) || string.IsNullOrWhiteSpace(model.Token))
+            {
+                return BadRequest("Request is invalid");
+            }
+
+    var user = await _userManager.FindByEmailAsync(model.Email);
+
+    if (user == null)
+        return BadRequest("Invalid request");
+
+    string decodedToken;
+
+try
+{
+    decodedToken = Encoding.UTF8.GetString(
+        WebEncoders.Base64UrlDecode(model.Token)
+    );
+}
+catch
+{
+    return BadRequest("Invalid token");
+}
+
+
+    var result = await _userManager.ResetPasswordAsync(
+        user,
+        decodedToken,
+        model.NewPassword
+    );
+
+    if (!result.Succeeded)
+        return BadRequest(result.Errors);
+
+    return Ok("Password reset successful");
+}
     }
 }

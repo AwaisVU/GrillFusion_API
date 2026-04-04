@@ -1,5 +1,6 @@
 using GrillFusion_API.Data;
 using GrillFusion_API.Models;
+using GrillFusion_API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.OpenApi;
@@ -18,10 +19,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
-builder.Services.AddIdentity<ApplicationUser,IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.AddIdentity<ApplicationUser,IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>().AddDefaultTokenProviders();
 
 builder.Services.AddControllers();
 
+//Email Service registered
+builder.Services.AddScoped<EmailService>();
 
 //Setting up API Key for authorization (retrieve from AppSettings.json)
 var key = builder.Configuration.GetValue<string>("ApiSettings:Secret");
