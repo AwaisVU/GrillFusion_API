@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Mail;
-using GrillFusion_API.Migrations;
 
 namespace GrillFusion_API.Services
 {

@@ -83,7 +83,7 @@ namespace GrillFusion_API.Controllers
                         PickUpName = orderDTO.PickUpName,
                         PickUpPhoneNo = orderDTO.PickUpPhoneNo,
                         PickUpEmail = orderDTO.PickUpEmail,
-                        OrderDate = DateTime.Now,
+                        OrderDate = DateTime.UtcNow,
                         OrderTotal = orderDTO.OrderTotal,
                         Status = SD.status_confirmed,
                         TotalItem = orderDTO.TotalItem,
@@ -124,7 +124,7 @@ namespace GrillFusion_API.Controllers
             {
                 _response.IsSuccess = false;
                 _response.StatusCode = HttpStatusCode.InternalServerError;
-                _response.ErrorMessages.Add(ex.Message);
+                _response.ErrorMessages.Add(ex.ToString());
                 return StatusCode((int)HttpStatusCode.InternalServerError, _response);
             }
         }
